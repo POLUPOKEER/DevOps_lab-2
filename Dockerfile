@@ -9,10 +9,10 @@ ENV PYTHONUNBUFFERED=1 \
 # Устанавливаем системные зависимости, объединяем их в группу .build-deps для последующего удаления
 RUN apk add --no-cache --virtual .build-deps \
     build-base gcc musl-dev libffi-dev openssl-dev postgresql-dev \
-    && apk add --no-cache postgresql-libs
+    && apk add --no-cache postgresql-libs \ 
+    # Создаём директории под приложение и окружения
+    && mkdir -p ${APP_HOME} ${VENV_IMAGE} ${VENV_PATH}
 
-# Создаём директории под приложение и окружения
-RUN mkdir -p ${APP_HOME} ${VENV_IMAGE} ${VENV_PATH}
 
 WORKDIR ${APP_HOME}
 
@@ -23,12 +23,12 @@ COPY requirements.txt .
 # Создаём виртуальное окружение и устанавливаем зависимости в VENV_IMAGE
 RUN python -m venv ${VENV_IMAGE} \
     && ${VENV_IMAGE}/bin/pip install --upgrade pip \
-    && ${VENV_IMAGE}/bin/pip install --no-cache-dir -r requirements.txt
+    && ${VENV_IMAGE}/bin/pip install --no-cache-dir -r requirements.txt \
+    # Удаляем сборочные системные зависимости, чтобы уменьшить итоговый слой
+    && apk del .build-deps \
+    && rm -rf /var/cache/apk/* 
 
-# Удаляем сборочные системные зависимости, чтобы уменьшить итоговый слой
-RUN apk del .build-deps && rm -rf /var/cache/apk/*
-
-# Cоздаём пользователя и назначаем права
+# Cоздаём пользователя и назначаем права - Отдельный RUN, т.к Linux ругается
 RUN adduser -D -u 1000 appuser \
     && chown -R appuser:appuser ${APP_HOME} ${VENV_IMAGE} ${VENV_PATH}
 
